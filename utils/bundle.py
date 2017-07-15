@@ -49,23 +49,25 @@ def read_point(lines):
 
 #Example of use (actually not used)
 class Bundle:
-	def __init__(self,bundlefile):
+	def __init__(self,bundlefile,cameraNames=None):
 		self.cameras = list()
 		self.points  = list()
 
-		#load the file with the corresponding images name
-		dirname =  os.path.dirname(bundlefile)
-		listfile_path = os.path.join(dirname, 'listfile.txt')
-		with open(listfile_path, 'r') as f:
-			listfile = f.readlines()
-		listfile = [ l.split()[0] for l in listfile ]
-		# and extract camera names from image filename
-		camNames = list(map(getCamNameFromFileName, listfile ) )
+		camNames = cameraNames
+		if not camNames:
+			#load the file with the corresponding images name
+			dirname =  os.path.dirname(bundlefile)
+			listfile_path = os.path.join(dirname, 'listfile.txt')
+			with open(listfile_path, 'r') as f:
+				listfile = f.readlines()
+			listfile = [ l.split()[0] for l in listfile ]
+			# and extract camera names from image filename
+			camNames = list(map(getCamNameFromFileName, listfile ) )
 
 		with open(bundlefile,'r') as f:
 			lines = gen_lines(f)
 			(numCam, numPts) = readlisti(next(lines))
-			assert( numCam == len(camNames) )
+			#assert( numCam == len(camNames) ) #disabled to pass a generator
 			for i,name in zip(range(numCam),camNames):
 				self.cameras.append(read_cam(lines,name))
 

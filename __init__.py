@@ -15,7 +15,7 @@ bl_info = {
     "category": "Import",
     }
 
-import importer
+from . import importer
 
 def register():
     importer.register()
