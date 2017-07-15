@@ -35,13 +35,13 @@ class OP_ImportBundle(bpy.types.Operator):
                 return {'PASS_THROUGH'}
             else:
                 print('loading without images')
-                loadBundle(self.bundleFile)
+                loadBundle(ctx.scene, self.bundleFile)
                 return {'FINISHED'}
 
         listfile = self.filepath
         print('loading normally')
         print(listfile)
-        loadBundle(self.bundleFile, listfile)
+        loadBundle(ctx.scene, self.bundleFile, listfile)
         return {'FINISHED'}
 
     def invoke(self, ctx, event):
@@ -50,9 +50,11 @@ class OP_ImportBundle(bpy.types.Operator):
         #ctx.window_manager.invoke_props_dialog(self)
         return {'RUNNING_MODAL'}
 
-def loadBundle(fbundle, flistimg=None):
+def loadBundle(sc, fbundle, flistimg=None):
     from .utils.other import Camera,Point,Feature
     from .utils.bundle import Bundle
+
+    import mathutils
 
     def gen():
         i=0
@@ -69,13 +71,32 @@ def loadBundle(fbundle, flistimg=None):
 
     bundle = Bundle( fbundle, camNames)
 
-    #for cam in bundle.cameras:
+    for i,cam_ in enumerate(bundle.cameras):
+        cam = Camera(*cam_)
+        cname = 'bCam{:03d}'.format(i)
+        camera = bpy.data.cameras.new(cname)
+        obj = bpy.data.objects.new(cname, camera)
+
+        camera.sensor_width = 1920.0
+        camera.lens = cam.focal
+        print("rot =", cam.rotation)
+        R = mathutils.Matrix(cam.rotation).to_4x4()
+        t = mathutils.Vector( (*cam.translation,1) )
+        T = mathutils.Matrix.Translation( -t )
+
+        obj.matrix_world = R.transposed() * T
+        obj['pseudo'] = cam.name
+
+        sc.objects.link(obj)
 
     me = bpy.data.meshes.new('point cloud')
     me.vertices.add(len(bundle.points))
     for i,pts_ in enumerate(bundle.points):
         pts = Point(*pts_)
         me.vertices[i].co = pts.pos
+
+    obj = bpy.data.objects.new("BundlePoints", me)
+    sc.objects.link(obj)
 
 
 
