@@ -62,7 +62,8 @@ class Bundle:
 				listfile = f.readlines()
 			listfile = [ l.split()[0] for l in listfile ]
 			# and extract camera names from image filename
-			camNames = list(map(getCamNameFromFileName, listfile ) )
+			#camNames = list(map(getCamNameFromFileName, listfile ) )
+			camNames = [ l.strip(' \n\t\r') for l in listfile ]
 
 		with open(bundlefile,'r') as f:
 			lines = gen_lines(f)

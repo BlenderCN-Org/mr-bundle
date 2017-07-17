@@ -55,7 +55,10 @@ def loadBundle(sc, fbundle, flistimg=None):
     from .utils.bundle import Bundle
 
     import mathutils
+    import os
 
+    imgDir = ""
+    loadImg = False
     def gen():
         i=0
         while True:
@@ -64,10 +67,12 @@ def loadBundle(sc, fbundle, flistimg=None):
 
     camNames = gen()
     if flistimg:
+        imgDir = os.path.dirname(flistimg)
         with open(flistimg, 'r') as f:
             lines = f.readlines()
             camNames = [ l.split()[0] for l in lines ]
         camNames = [ n.strip(' \n\t\r') for n in camNames ]
+        loadImg = True
 
     bundle = Bundle( fbundle, camNames)
 
@@ -75,19 +80,41 @@ def loadBundle(sc, fbundle, flistimg=None):
         cam = Camera(*cam_)
         cname = 'bCam{:03d}'.format(i)
         camera = bpy.data.cameras.new(cname)
-        obj = bpy.data.objects.new(cname, camera)
+        camObj = bpy.data.objects.new(cname, camera)
 
-        camera.sensor_width = 1920.0
-        camera.lens = cam.focal
-        print("rot =", cam.rotation)
+        camera.sensor_width = 1920.0 #FIXME read from listfile.txt
+        camera.lens = cam.focal #
         R = mathutils.Matrix(cam.rotation).to_4x4()
         t = mathutils.Vector( (*cam.translation,1) )
         T = mathutils.Matrix.Translation( -t )
 
-        obj.matrix_world = R.transposed() * T
-        obj['pseudo'] = cam.name
+        camObj.matrix_world = R.transposed() * T
+        sc.objects.link(camObj)
 
-        sc.objects.link(obj)
+        #obj['pseudo'] = cam.name
+        if not loadImg: continue
+        img = None
+        try:
+            img = bpy.data.images.load(os.path.join(imgDir,cam.name))
+        except RuntimeError as ex:
+            print(ex)
+            continue
+
+        imgObj = bpy.data.objects.new("Img_"+cam.name, None)
+        imgObj.empty_draw_type = "IMAGE"
+        imgObj.empty_image_offset[0] = -0.5
+        imgObj.empty_image_offset[1] = -0.5
+        imgObj.color = (1.0,1.0,1.0, 0.5)
+
+        #positionner à (0,0,-f/sensor_width) en cam space
+        imgPos = mathutils.Vector( (0.0, 0.0, -camera.lens/camera.sensor_width, 1.0) )
+        mat = camObj.matrix_world * mathutils.Matrix.Translation(imgPos)
+        imgObj.matrix_world = mat
+        #imgObj.location = imgWPos.xyz
+        #loader l'image
+
+        imgObj.data = img
+        sc.objects.link(imgObj)
 
     me = bpy.data.meshes.new('point cloud')
     me.vertices.add(len(bundle.points))
@@ -98,9 +125,7 @@ def loadBundle(sc, fbundle, flistimg=None):
     obj = bpy.data.objects.new("BundlePoints", me)
     sc.objects.link(obj)
 
-
-
-
+    print('Done !')
 
 
 def import_menu_func(self, ctx):
